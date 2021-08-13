@@ -1,13 +1,29 @@
-from funcs import getInts
+from funcs import getInts, readList
+import getpass
+import argparse
 
 if __name__ == "__main__":
 
-    hosts = ["172.31.0.1", "172.31.0.2"]
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-f", help="File containing list of hosts to check", default="hosts.txt")
+    args = parser.parse_args()
 
-    for h in hosts:
+    print(args)
+
+    hostList, err = readList(args.f)
+    if err != "":
+        print("Error opening file:")
+        print(err)
+
+    configsDir = "configs/"
+    devUser = input("Username: ")
+    devPass = getpass.getpass()
+
+    for h in hostList:
         print("\n\nChecking interfaces on %s\n=================================\n" % h)
-        intsList = getInts({"host": h, "port": 830, "user": "mark",
-                            "password": "password123"})
+        intsList = getInts({"host": h.rstrip("\n"), "port": 830, "user": devUser,
+                            "password": devPass})
 
         updateInts = []
 
@@ -23,5 +39,13 @@ if __name__ == "__main__":
                 print("%s\n%s Current MTU OK: %d\n" %
                       (i.description, i.name, i.mtu))
 
-        for u in updateInts:
-            print("set interfaces %s mtu 9192" % u)
+        try:
+            changeHost = h.replace(".", "_").rstrip("\n")
+            with open(configsDir+changeHost+".set", "w") as fileOut:
+                for u in updateInts:
+                    writeLine = "set interfaces %s mtu 9192\n" % u
+                    print(writeLine)
+                    fileOut.write(writeLine)
+                fileOut.close()
+        except Exception as err:
+            print(err)
